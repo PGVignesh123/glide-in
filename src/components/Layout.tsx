@@ -20,7 +20,7 @@ const Layout = ({ children }: LayoutProps) => {
           <header className="h-16 border-b bg-surface flex items-center justify-between px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger />
-              <h1 className="text-xl font-semibold text-foreground">Risk Assessment Platform</h1>
+              <h1 className="text-xl font-semibold text-foreground">Scoring & Ranking of Defaulters</h1>
             </div>
             
             <div className="flex items-center gap-4">

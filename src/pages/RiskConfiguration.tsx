@@ -241,7 +241,7 @@ const RiskConfiguration = () => {
    
     toast({
       title: "Rules Saved",
-      description: "Risk assessment configuration has been saved successfully. Dashboard will reflect these changes.",
+      description: "Scoring Configuration has been saved successfully. Dashboard will reflect these changes.",
     });
   };
  
@@ -255,7 +255,7 @@ const RiskConfiguration = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Risk Assessment Configuration</h1>
+        <h1 className="text-2xl font-bold text-foreground">Scoring Configuration</h1>
         <p className="text-muted-foreground">Configure scoring rules and conditions for risk assessment</p>
       </div>
  

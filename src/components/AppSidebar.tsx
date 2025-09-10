@@ -41,12 +41,12 @@ export function AppSidebar() {
       <SidebarContent>
         <div className="p-4 border-b">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Shield className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <div className="flex justify-center mb-4">
+            <img src="logo.png" alt="Logo" className="h-5 w-10 rounded" />
+          </div>
             {!collapsed && (
               <div>
-                <p className="font-semibold text-sm">Risk Platform</p>
+                <p className="font-semibold text-sm">Scoring of Defaulters</p>
                 <p className="text-xs text-muted-foreground">Financial Services</p>
               </div>
             )}
