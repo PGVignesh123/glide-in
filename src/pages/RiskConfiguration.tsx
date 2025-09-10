@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
+ 
 interface RiskCondition {
   id: string;
   field: string;
@@ -16,7 +16,7 @@ interface RiskCondition {
   weight: number;
   dataType: string;
 }
-
+ 
 interface RiskCategory {
   id: string;
   name: string;
@@ -24,11 +24,11 @@ interface RiskCategory {
   totalWeight: number;
   status: 'incomplete' | 'complete';
 }
-
+ 
 const RiskConfiguration = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('financial');
-  
+ 
   const fieldOptions = {
     financial: [
       { name: 'Loan Amount', dataType: 'Number' },
@@ -61,15 +61,18 @@ const RiskConfiguration = () => {
       { name: 'Recent Missed Payments', dataType: 'Number' }
     ]
   };
-
-  const getAvailableFields = (categoryId: string) => {
+ 
+  // Modified: Accepts currentField to always include it in the dropdown
+  const getAvailableFields = (categoryId: string, currentField?: string) => {
     const category = categories.find(cat => cat.id === categoryId);
     const usedFields = category?.conditions.map(c => c.field) || [];
-    return fieldOptions[categoryId as keyof typeof fieldOptions]?.filter(
-      field => !usedFields.includes(field.name)
-    ) || [];
+    return (
+      fieldOptions[categoryId as keyof typeof fieldOptions]?.filter(
+        field => !usedFields.includes(field.name) || field.name === currentField
+      ) || []
+    );
   };
-
+ 
   const getOperatorsForDataType = (dataType: string) => {
     switch (dataType) {
       case 'Boolean':
@@ -96,10 +99,10 @@ const RiskConfiguration = () => {
         ];
     }
   };
-
+ 
   const getValueInput = (condition: RiskCondition, onUpdate: (value: string) => void) => {
     const { dataType, value } = condition;
-    
+   
     if (dataType === 'Boolean') {
       return (
         <Select value={value} onValueChange={onUpdate}>
@@ -113,7 +116,7 @@ const RiskConfiguration = () => {
         </Select>
       );
     }
-    
+   
     if (dataType === 'Percentage') {
       return (
         <div className="relative">
@@ -129,7 +132,7 @@ const RiskConfiguration = () => {
         </div>
       );
     }
-    
+   
     return (
       <Input
         type={dataType === 'Number' ? 'number' : 'text'}
@@ -139,7 +142,7 @@ const RiskConfiguration = () => {
       />
     );
   };
-  
+ 
   const [categories, setCategories] = useState<RiskCategory[]>([
     {
       id: 'financial',
@@ -180,12 +183,12 @@ const RiskConfiguration = () => {
       status: 'incomplete'
     }
   ]);
-
+ 
   const activeCategory = categories.find(cat => cat.id === activeTab);
-
+ 
   const addCondition = () => {
     if (!activeCategory) return;
-    
+   
     const newCondition: RiskCondition = {
       id: Date.now().toString(),
       field: '',
@@ -194,19 +197,19 @@ const RiskConfiguration = () => {
       weight: 0,
       dataType: 'Number'
     };
-
-    setCategories(prev => prev.map(cat => 
-      cat.id === activeTab 
+ 
+    setCategories(prev => prev.map(cat =>
+      cat.id === activeTab
         ? { ...cat, conditions: [...cat.conditions, newCondition] }
         : cat
     ));
   };
-
+ 
   const removeCondition = (conditionId: string) => {
-    setCategories(prev => prev.map(cat => 
-      cat.id === activeTab 
-        ? { 
-            ...cat, 
+    setCategories(prev => prev.map(cat =>
+      cat.id === activeTab
+        ? {
+            ...cat,
             conditions: cat.conditions.filter(c => c.id !== conditionId),
             totalWeight: cat.conditions
               .filter(c => c.id !== conditionId)
@@ -215,13 +218,13 @@ const RiskConfiguration = () => {
         : cat
     ));
   };
-
+ 
   const updateCondition = (conditionId: string, field: keyof RiskCondition, value: any) => {
-    setCategories(prev => prev.map(cat => 
-      cat.id === activeTab 
-        ? { 
-            ...cat, 
-            conditions: cat.conditions.map(c => 
+    setCategories(prev => prev.map(cat =>
+      cat.id === activeTab
+        ? {
+            ...cat,
+            conditions: cat.conditions.map(c =>
               c.id === conditionId ? { ...c, [field]: value } : c
             ),
             totalWeight: cat.conditions
@@ -231,31 +234,31 @@ const RiskConfiguration = () => {
         : cat
     ));
   };
-
+ 
   const saveRules = () => {
     // Store the categories in localStorage to persist across sessions
     localStorage.setItem('riskCategories', JSON.stringify(categories));
-    
+   
     toast({
       title: "Rules Saved",
       description: "Risk assessment configuration has been saved successfully. Dashboard will reflect these changes.",
     });
   };
-
+ 
   const previewRules = () => {
     toast({
       title: "Rules Preview",
       description: "Opening rules preview...",
     });
   };
-
+ 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Risk Assessment Configuration</h1>
         <p className="text-muted-foreground">Configure scoring rules and conditions for risk assessment</p>
       </div>
-
+ 
       {/* Category Tabs */}
       <div className="flex gap-2 border-b">
         {categories.map((category) => (
@@ -272,7 +275,7 @@ const RiskConfiguration = () => {
           </button>
         ))}
       </div>
-
+ 
       {/* Active Category Content */}
       {activeCategory && (
         <Card>
@@ -306,11 +309,17 @@ const RiskConfiguration = () => {
                       <SelectValue placeholder="Select field" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getAvailableFields(activeTab).map((field) => (
-                        <SelectItem key={field.name} value={field.name}>
-                          {field.name}
-                        </SelectItem>
-                      ))}
+                      {fieldOptions[activeTab as keyof typeof fieldOptions]?.map((field) => {
+                        // Find if this field is used in another condition (not this one)
+                        const isUsed = activeCategory.conditions.some(
+                          (c) => c.field === field.name && c.id !== condition.id
+                        );
+                        return (
+                          <SelectItem key={field.name} value={field.name} disabled={isUsed}>
+                            {field.name}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -359,7 +368,7 @@ const RiskConfiguration = () => {
                 </Button>
               </div>
             ))}
-
+ 
             <Button
               variant="outline"
               onClick={addCondition}
@@ -368,14 +377,14 @@ const RiskConfiguration = () => {
               <Plus className="h-4 w-4 mr-2" />
               Add Condition
             </Button>
-
+ 
             <div className="text-sm text-muted-foreground">
               {activeCategory.conditions.length} conditions configured
             </div>
           </CardContent>
         </Card>
       )}
-
+ 
       {/* Configuration Summary */}
       <Card>
         <CardHeader>
@@ -391,7 +400,7 @@ const RiskConfiguration = () => {
                 <h3 className="font-medium text-sm">{category.name}</h3>
                 <div className="text-2xl font-bold mt-2">{category.conditions.length}</div>
                 <p className="text-xs text-muted-foreground">Weight: {category.totalWeight}%</p>
-                <Badge 
+                <Badge
                   variant={category.status === 'complete' ? "default" : "secondary"}
                   className="mt-2"
                 >
@@ -400,7 +409,7 @@ const RiskConfiguration = () => {
               </div>
             ))}
           </div>
-
+ 
           <div className="flex gap-2 mt-6">
             <Button onClick={previewRules} variant="outline">
               Preview Rules
@@ -414,5 +423,6 @@ const RiskConfiguration = () => {
     </div>
   );
 };
-
+ 
 export default RiskConfiguration;
+ 
