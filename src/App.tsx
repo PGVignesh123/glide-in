@@ -26,7 +26,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Navigate to="/dashboard/config" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard/scoring" replace />} />
             <Route
               path="/dashboard/*"
               element={
@@ -35,7 +35,7 @@ const App = () => (
                     <Routes>
                       <Route path="config" element={<RiskConfiguration />} />
                       <Route path="scoring" element={<DefaulterDashboard />} />
-                      <Route path="*" element={<Navigate to="/dashboard/config" replace />} />
+                      <Route path="*" element={<Navigate to="/dashboard/scoring" replace />} />
                     </Routes>
                   </Layout>
                 </ProtectedRoute>

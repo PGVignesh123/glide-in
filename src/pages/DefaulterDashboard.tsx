@@ -15,6 +15,8 @@ interface Defaulter {
   paymentScore: number;
   riskLevel: 'Critical' | 'High' | 'Medium' | 'Low';
   collectionCost: number;
+  propensityScore?: number;
+  rank?: number;
 }
 
 const DefaulterDashboard = () => {
@@ -23,7 +25,6 @@ const DefaulterDashboard = () => {
   const [riskFilter, setRiskFilter] = useState('All Risk Levels');
   const [configuredCategories, setConfiguredCategories] = useState(0);
 
-  // Load saved risk configuration
   useEffect(() => {
     const savedCategories = localStorage.getItem('riskCategories');
     if (savedCategories) {
@@ -32,7 +33,7 @@ const DefaulterDashboard = () => {
       setConfiguredCategories(configuredCount);
     }
   }, []);
-  
+
   const [defaulters] = useState<Defaulter[]>([
     { id: '1', name: 'John Anderson', loanAmount: 45000, daysPastDue: 90, paymentScore: 25, riskLevel: 'High', collectionCost: 3500 },
     { id: '2', name: 'Sarah Mitchell', loanAmount: 78000, daysPastDue: 180, paymentScore: 15, riskLevel: 'Critical', collectionCost: 8500 },
@@ -45,12 +46,6 @@ const DefaulterDashboard = () => {
     { id: '9', name: 'James Wilson', loanAmount: 41000, daysPastDue: 60, paymentScore: 48, riskLevel: 'Medium', collectionCost: 2800 },
     { id: '10', name: 'Jennifer Brown', loanAmount: 95000, daysPastDue: 195, paymentScore: 12, riskLevel: 'Critical', collectionCost: 9800 }
   ]);
-
-  const filteredDefaulters = defaulters.filter(defaulter => {
-    const matchesSearch = defaulter.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRisk = riskFilter === 'All Risk Levels' || defaulter.riskLevel === riskFilter;
-    return matchesSearch && matchesRisk;
-  });
 
   const totalDefaulters = defaulters.length;
   const totalLoanAmount = defaulters.reduce((sum, d) => sum + d.loanAmount, 0);
@@ -75,12 +70,8 @@ const DefaulterDashboard = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
   const exportData = () => {
     toast({
@@ -88,6 +79,36 @@ const DefaulterDashboard = () => {
       description: "Your data is being exported. Download will start shortly.",
     });
   };
+
+  // Define proper weights so high risk gives lower propensity score
+  const riskWeight = {
+    'Critical': 0.3,
+    'High': 0.5,
+    'Medium': 0.8,
+    'Low': 1.0,
+  };
+
+  // Compute Propensity Score and Rank
+  const defaultersWithPropensity = defaulters.map(defaulter => {
+    const baseScore =
+      defaulter.daysPastDue * 0.5 +
+      (100 - defaulter.paymentScore) * 0.3 +
+      (defaulter.collectionCost / 1000) * 0.2;
+
+    const propensityScore = baseScore * riskWeight[defaulter.riskLevel];
+
+    return { ...defaulter, propensityScore };
+  });
+
+  const rankedDefaulters = [...defaultersWithPropensity]
+    .sort((a, b) => b.propensityScore - a.propensityScore)
+    .map((defaulter, index) => ({ ...defaulter, rank: index + 1 }));
+
+  const filteredDefaulters = rankedDefaulters.filter(defaulter => {
+    const matchesSearch = defaulter.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRisk = riskFilter === 'All Risk Levels' || defaulter.riskLevel === riskFilter;
+    return matchesSearch && matchesRisk;
+  });
 
   return (
     <div className="space-y-6">
@@ -231,42 +252,14 @@ const DefaulterDashboard = () => {
             <table className="w-full">
               <thead className="border-b bg-muted/50">
                 <tr>
-                  <th className="text-left p-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      Defaulter Name
-                      <ArrowUpDown className="h-4 w-4" />
-                    </div>
-                  </th>
-                  <th className="text-left p-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      Loan Amount
-                      <ArrowUpDown className="h-4 w-4" />
-                    </div>
-                  </th>
-                  <th className="text-left p-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      Days Past Due
-                      <ArrowUpDown className="h-4 w-4" />
-                    </div>
-                  </th>
-                  <th className="text-left p-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      Payment History Score
-                      <ArrowUpDown className="h-4 w-4" />
-                    </div>
-                  </th>
-                  <th className="text-left p-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      Segment Risk
-                      <ArrowUpDown className="h-4 w-4" />
-                    </div>
-                  </th>
-                  <th className="text-left p-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      Cost to Collect
-                      <ArrowUpDown className="h-4 w-4" />
-                    </div>
-                  </th>
+                  <th className="text-left p-4 font-medium">Defaulter Name</th>
+                  <th className="text-left p-4 font-medium">Loan Amount</th>
+                  <th className="text-left p-4 font-medium">Days Past Due</th>
+                  <th className="text-left p-4 font-medium">Payment History Score</th>
+                  <th className="text-left p-4 font-medium">Segment Risk</th>
+                  <th className="text-left p-4 font-medium">Cost to Collect</th>
+                  <th className="text-left p-4 font-medium">Propensity Score</th>
+                  <th className="text-left p-4 font-medium">Rank</th>
                 </tr>
               </thead>
               <tbody>
@@ -290,6 +283,8 @@ const DefaulterDashboard = () => {
                       </Badge>
                     </td>
                     <td className="p-4">{formatCurrency(defaulter.collectionCost)}</td>
+                    <td className="p-4">{defaulter.propensityScore!.toFixed(2)}</td>
+                    <td className="p-4">{defaulter.rank}</td>
                   </tr>
                 ))}
               </tbody>

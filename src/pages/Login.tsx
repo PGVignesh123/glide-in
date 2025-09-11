@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import {  Lock, Mail } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,7 +16,7 @@ const Login = () => {
   const { toast } = useToast();
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/dashboard/scoring" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,13 +102,6 @@ const Login = () => {
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
-            {/* <div className="mt-4 p-3 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                <strong>Demo credentials:</strong><br />
-                Email: admin@finance.com<br />
-                Password: admin123
-              </p>
-            </div> */}
           </CardContent>
         </Card>
       </div>
