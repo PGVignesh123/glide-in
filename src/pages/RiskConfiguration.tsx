@@ -270,10 +270,10 @@ const RiskConfiguration = () => {
       // Transform UI data to API format
       const allConditions = categories.flatMap(category => 
         category.conditions.map(condition => ({
-          RiskFieldId: condition.riskFieldId || Object.values(fieldOptions).flat().find(f => f.name === condition.field)?.riskFieldId || 1,
-          Operator: condition.operator,
-          Value: condition.value,
-          WeightPercentage: condition.weight
+          RiskFieldId: Number(condition.riskFieldId || Object.values(fieldOptions).flat().find(f => f.name === condition.field)?.riskFieldId || 1),
+          Operator: String(condition.operator),
+          Value: String(condition.value),
+          WeightPercentage: Number(condition.weight)
         }))
       );
 
