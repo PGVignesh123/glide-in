@@ -215,8 +215,10 @@ const RiskConfiguration = () => {
       totalWeight: 0,
       status: "incomplete",
     },
-  ]);
-
+]); 
+  
+  const [fieldIdMap, setFieldIdMap] = useState<Record<string, number>>({});
+  
   // API functions
   const fetchConfigurations = async () => {
     setLoading(true);
@@ -225,25 +227,42 @@ const RiskConfiguration = () => {
       console.log("[GetConfig] Response status:", response.status);
       const data: ApiConfigItem[] = await response.json();
       
+      // Build DisplayName -> RiskFieldId map
+      const idMap: Record<string, number> = {};
+      data.forEach(item => { idMap[item.DisplayName] = item.RiskFieldId; });
+      setFieldIdMap(idMap);
+      
       // Transform API data to UI format, only include enabled configs
       const transformedCategories = categories.map(category => {
+        const categoryFieldNames = new Set(
+          (fieldOptions[category.id as keyof typeof fieldOptions] || []).map(f => f.name)
+        );
+
         const categoryConditions = data
-          .filter(item => {
-            if (!item.IsEnabled) return false;
-            console.log("[FetchConfig] Processing item:", item);
-            const fieldInfo = Object.values(fieldOptions).flat().find(f => f.name === item.DisplayName);
-            return fieldInfo && Object.values(fieldOptions[category.id as keyof typeof fieldOptions] || []).includes(fieldInfo);
-          })
-          .map(item => ({
-            id: item.ConfigId.toString(),
-            field: item.DisplayName,
-            operator: item.Operator,
-            value: item.Value,
-            weight: item.WeightPercentage,
-            dataType: Object.values(fieldOptions).flat().find(f => f.name === item.DisplayName)?.dataType || "Number",
-            configId: item.ConfigId,
-            riskFieldId: item.RiskFieldId
-          }));
+          .filter(item => categoryFieldNames.has(item.DisplayName))
+          .map(item => {
+            const fieldDef = Object.values(fieldOptions).flat().find(f => f.name === item.DisplayName);
+            const valueStr = String(item.Value ?? "");
+            const inferredType = fieldDef?.dataType || (
+              ["yes", "no", "true", "false"].includes(valueStr.toLowerCase())
+                ? "Boolean"
+                : /^\d+(\.\d+)?$/.test(valueStr)
+                  ? "Number"
+                  : "Text"
+            );
+
+            return {
+              id: item.ConfigId.toString(),
+              field: item.DisplayName,
+              operator: item.Operator,
+              value: item.Value,
+              weight: item.WeightPercentage,
+              dataType: inferredType,
+              configId: item.ConfigId,
+              riskFieldId: item.RiskFieldId
+            } as RiskCondition;
+          });
+
 
         const totalWeight = categoryConditions.reduce((sum, c) => sum + c.weight, 0);
         console.log(`[FetchConfig] Category: ${category.name}, Total Weight: ${totalWeight}`);
@@ -272,15 +291,19 @@ const RiskConfiguration = () => {
     try {
       // Transform UI data to API format
       const allConditions = categories.flatMap(category => 
-        category.conditions.map(condition => ({
-          RiskFieldId: Number(condition.riskFieldId || Object.values(fieldOptions).flat().find(f => f.name === condition.field)?.riskFieldId || 1),
-          Operator: String(condition.operator),
-          Value: String(condition.value),
-          WeightPercentage: Number(condition.weight)
-        }))
+        category.conditions.map(condition => {
+          const fallbackId = Object.values(fieldOptions).flat().find(f => f.name === condition.field)?.riskFieldId;
+          const resolvedId = (condition.riskFieldId ?? fieldIdMap[condition.field] ?? fallbackId ?? 0);
+          return {
+            RiskFieldId: Number(resolvedId),
+            Operator: String(condition.operator),
+            Value: String(condition.value),
+            WeightPercentage: Number(condition.weight)
+          };
+        })
       );
 
-      console.log("[SaveConfig] Payload:", allConditions);
+      console.log("[SaveConfig] Payload:", JSON.stringify(allConditions, null, 2));
 
       const response = await fetch('https://marstonx-defaulterrankingapp.azurewebsites.net/api/SaveConfig', {
         method: 'POST',
@@ -305,6 +328,7 @@ const RiskConfiguration = () => {
           title: "Success",
           description: "Risk configurations updated successfully."
         });
+        await fetchConfigurations();
       } else {
         throw new Error('Failed to save configurations');
       }
@@ -586,8 +610,8 @@ const RiskConfiguration = () => {
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="true">Yes</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : activeTab === "identity" ? (
@@ -682,17 +706,14 @@ const RiskConfiguration = () => {
             ))}
           </div>
 
-          <div className="flex gap-2 mt-6">
-            <Button onClick={previewRules} variant="outline">
-              Cancel
-            </Button>
-            <Button
-              onClick={saveRules}
-              disabled={categories.reduce((sum, cat) => sum + cat.totalWeight, 0) !== 100}
-            >
-              Save Configuration
-            </Button>
-          </div>
+            <div className="flex gap-2 mt-6">
+              <Button onClick={previewRules} variant="outline">
+                Cancel
+              </Button>
+              <Button onClick={saveRules}>
+                Save Configuration
+              </Button>
+            </div>
         </CardContent>
       </Card>
     </div>
