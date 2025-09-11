@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Simulate API call
     if (email === 'admin@finance.com' && password === 'admin123') {
       setIsAuthenticated(true);
-      setUser({ email, name: 'John Admin' });
+      setUser({ email, name: 'Admin' });
       return true;
     }
     return false;

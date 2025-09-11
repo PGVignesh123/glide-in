@@ -114,7 +114,7 @@ const DefaulterDashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Defaulter Scoring Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Defaulter Scoring & Ranking Dashboard</h1>
           <p className="text-muted-foreground">Track and manage loan defaulters with risk-based scoring</p>
         </div>
         <Button onClick={exportData} className="flex items-center gap-2">

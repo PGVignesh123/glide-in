@@ -14,12 +14,12 @@ import { Settings, BarChart3, Shield } from 'lucide-react';
 
 const menuItems = [
   {
-    title: 'Dashboard',
+    title: 'Scoring & Ranking',
     url: '/dashboard/scoring',
     icon: BarChart3,
   },
   {
-    title: 'Configuration',
+    title: 'Scoring Configuration',
     url: '/dashboard/config',
     icon: Settings,
   },
@@ -42,7 +42,7 @@ export function AppSidebar() {
         <div className="p-4 border-b">
           <div className="flex items-center gap-2">
             <div className="flex justify-center mb-4">
-            <img src="logo.png" alt="Logo" className="h-5 w-10 rounded" />
+            <img src="/logo.png" alt="Logo" className="h-5 w-10 rounded" />
           </div>
             {!collapsed && (
               <div>
@@ -54,7 +54,7 @@ export function AppSidebar() {
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (

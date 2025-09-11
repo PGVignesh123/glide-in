@@ -313,6 +313,16 @@ const RiskConfiguration = () => {
     });
   };
 
+  // Check if any combination of categories sums to 100
+  const isAny100 = categories.some((cat) => cat.totalWeight === 100) ||
+    categories.reduce((sum, cat) => sum + cat.totalWeight, 0) === 100;
+
+  // Only disable tabs that have no conditions when total is 100%
+  const shouldDisableTab = (category: RiskCategory) => {
+    if (!isAny100) return false;
+    return category.conditions.length === 0 && activeTab !== category.id;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -329,12 +339,15 @@ const RiskConfiguration = () => {
         {categories.map((category) => (
           <button
             key={category.id}
-            onClick={() => setActiveTab(category.id)}
+            onClick={() => {
+              if (!shouldDisableTab(category)) setActiveTab(category.id);
+            }}
             className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
               activeTab === category.id
                 ? "bg-primary text-primary-foreground border-primary"
                 : "text-muted-foreground hover:text-foreground border-transparent"
-            }`}
+            } ${shouldDisableTab(category) ? "opacity-50 cursor-not-allowed" : ""}`}
+            disabled={shouldDisableTab(category)}
           >
             {category.name}
           </button>
@@ -380,6 +393,9 @@ const RiskConfiguration = () => {
                           "dataType",
                           selectedField.dataType
                         );
+                        if (selectedField.dataType === "Boolean") {
+                          updateCondition(condition.id, "operator", "=");
+                        }
                       }
                     }}
                   >
@@ -407,53 +423,68 @@ const RiskConfiguration = () => {
                     </SelectContent>
                   </Select>
                 </div>
-   <div className="w-24">
-  <Label>Operator</Label>
-  <Select
-    value={activeTab === "identity" ? "=" : condition.operator}
-    onValueChange={(value) =>
-      updateCondition(condition.id, "operator", value)
-    }
-    disabled={activeTab === "identity"} // Cannot change for Identity
-  >
-    <SelectTrigger>
-      <SelectValue />
-    </SelectTrigger>
-    <SelectContent>
-      {activeTab === "identity" ? (
-        <SelectItem value="=">=</SelectItem>
-      ) : (
-        getOperatorsForDataType(condition.dataType).map((op) => (
-          <SelectItem key={op.value} value={op.value}>
-            {op.label}
-          </SelectItem>
-        ))
-      )}
-    </SelectContent>
-  </Select>
-</div>
+                <div className="w-24">
+                  <Label>Operator</Label>
+                  {condition.dataType === "Boolean" ? (
+                    <div className="h-10 flex items-center pl-2 font-mono text-base">=</div>
+                  ) : (
+                    <Select
+                      value={activeTab === "identity" ? "=" : condition.operator}
+                      onValueChange={(value) =>
+                        updateCondition(condition.id, "operator", value)
+                      }
+                      disabled={activeTab === "identity"}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeTab === "identity" ? (
+                          <SelectItem value="=">=</SelectItem>
+                        ) : (
+                          getOperatorsForDataType(condition.dataType).map((op) => (
+                            <SelectItem key={op.value} value={op.value}>
+                              {op.label}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
 
-<div className="w-32">
-  <Label>Value</Label>
-  {activeTab === "identity" ? (
-    <Select
-      value={condition.value}
-      onValueChange={(value) => updateCondition(condition.id, "value", value)}
-    >
-      <SelectTrigger>
-        <SelectValue placeholder="Select" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="Yes">Yes</SelectItem>
-        <SelectItem value="No">No</SelectItem>
-      </SelectContent>
-    </Select>
-  ) : (
-    getValueInput(condition, (value) =>
-      updateCondition(condition.id, "value", value)
-    )
-  )}
-</div>
+                <div className="w-32">
+                  <Label>Value</Label>
+                  {condition.dataType === "Boolean" ? (
+                    <Select
+                      value={condition.value}
+                      onValueChange={(value) => updateCondition(condition.id, "value", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : activeTab === "identity" ? (
+                    <Select
+                      value={condition.value}
+                      onValueChange={(value) => updateCondition(condition.id, "value", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    getValueInput(condition, (value) => updateCondition(condition.id, "value", value))
+                  )}
+                </div>
 
 
                 <div className="w-20">
@@ -482,7 +513,15 @@ const RiskConfiguration = () => {
               </div>
             ))}
 
-            <Button variant="outline" onClick={addCondition} className="w-full">
+            <Button
+              variant="outline"
+              onClick={addCondition}
+              className="w-full"
+              disabled={
+                isAny100 ||
+                (fieldOptions[activeTab as keyof typeof fieldOptions]?.length === activeCategory.conditions.length)
+              }
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Condition
             </Button>
@@ -516,23 +555,21 @@ const RiskConfiguration = () => {
                 <p className="text-xs text-muted-foreground">
                   Weight: {category.totalWeight}%
                 </p>
-                <Badge
-                  variant={
-                    category.status === "complete" ? "default" : "secondary"
-                  }
-                  className="mt-2"
-                >
-                  {category.status === "complete" ? "Complete" : "Incomplete"}
-                </Badge>
+                {/* Status badge removed as requested */}
               </div>
             ))}
           </div>
 
           <div className="flex gap-2 mt-6">
             <Button onClick={previewRules} variant="outline">
-              Preview Rules
+              Cancel
             </Button>
-            <Button onClick={saveRules}>Save Configuration</Button>
+            <Button
+              onClick={saveRules}
+              disabled={categories.reduce((sum, cat) => sum + cat.totalWeight, 0) !== 100}
+            >
+              Save Configuration
+            </Button>
           </div>
         </CardContent>
       </Card>
