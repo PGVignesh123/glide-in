@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,20 @@ interface RiskCondition {
   value: string;
   weight: number;
   dataType: string;
+  configId?: number;
+  riskFieldId?: number;
+}
+
+interface ApiConfigItem {
+  ConfigId: number;
+  RiskFieldId: number;
+  Operator: string;
+  Value: string;
+  WeightPercentage: number;
+  CreatedAt: string;
+  IsEnabled: boolean;
+  FieldName: string;
+  DisplayName: string;
 }
 
 interface RiskCategory {
@@ -34,37 +48,47 @@ interface RiskCategory {
 const RiskConfiguration = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("financial");
+  const [loading, setLoading] = useState(false);
 
   const fieldOptions = {
     financial: [
-      { name: "Loan Amount", dataType: "Number" },
-      { name: "Outstanding Balance", dataType: "Number" },
-      { name: "Days Past Due (DPD)", dataType: "Number" },
-      { name: "Repayment History Score", dataType: "Number" },
-      { name: "Previous Defaults (count)", dataType: "Number" },
-      { name: "Cost-to-Collect Estimate", dataType: "Number" },
+      { name: "Loan Amount", dataType: "Number", riskFieldId: 1 },
+      { name: "Outstanding Balance", dataType: "Number", riskFieldId: 2 },
+      { name: "Days Past Due (DPD)", dataType: "Number", riskFieldId: 3 },
+      { name: "Repayment History Score", dataType: "Number", riskFieldId: 4 },
+      { name: "Credit Score (Experian/Equifax)", dataType: "Number", riskFieldId: 5 },
+      { name: "Credit Utilisation Ratio", dataType: "Percentage", riskFieldId: 6 },
+      { name: "Previous Defaults (count)", dataType: "Number", riskFieldId: 7 },
+      { name: "Cost-to-Collect Estimate", dataType: "Number", riskFieldId: 8 },
     ],
     identity: [
-      { name: "Name Match %", dataType: "Percentage" },
-      { name: "Address Match %", dataType: "Percentage" },
-      { name: "DOB Match", dataType: "Boolean" },
-      { name: "National Insurance Number Match", dataType: "Boolean" },
+      { name: "Name Match %", dataType: "Percentage", riskFieldId: 9 },
+      { name: "Address Match %", dataType: "Percentage", riskFieldId: 10 },
+      { name: "DOB Match", dataType: "Boolean", riskFieldId: 11 },
+      { name: "National Insurance Number Match", dataType: "Boolean", riskFieldId: 12 },
+      { name: "Identity Match Score (Weighted)", dataType: "Number", riskFieldId: 13 },
     ],
     property: [
-      { name: "Years at Current Address", dataType: "Number" },
-      { name: "Property Owned (Yes/No)", dataType: "Boolean" },
-      { name: "Property Value", dataType: "Number" },
-      { name: "Vehicle Owned (Yes/No)", dataType: "Boolean" },
+      { name: "Years at Current Address", dataType: "Number", riskFieldId: 14 },
+      { name: "Property Owned (Yes/No)", dataType: "Boolean", riskFieldId: 15 },
+      { name: "Property Value", dataType: "Number", riskFieldId: 16 },
+      { name: "Home Ownership Status", dataType: "Text", riskFieldId: 17 },
+      { name: "Vehicle Owned (Yes/No)", dataType: "Boolean", riskFieldId: 18 },
+      { name: "Stability Score", dataType: "Number", riskFieldId: 19 },
     ],
     contactability: [
-      { name: "Contact Numbers Available (count)", dataType: "Number" },
-      { name: "Validated Phone Number (Yes/No)", dataType: "Boolean" },
-      { name: "Number of Contactable Channels", dataType: "Number" },
-      { name: "Agent Recovery Success Rate", dataType: "Percentage" },
+      { name: "Contact Numbers Available (count)", dataType: "Number", riskFieldId: 20 },
+      { name: "Validated Phone Number (Yes/No)", dataType: "Boolean", riskFieldId: 21 },
+      { name: "Mobile Number Verified", dataType: "Boolean", riskFieldId: 22 },
+      { name: "Number of Contactable Channels", dataType: "Number", riskFieldId: 23 },
+      { name: "Agent Recovery Success Rate", dataType: "Percentage", riskFieldId: 24 },
     ],
     risk: [
-      { name: "Criminal Record Flag (Yes/No)", dataType: "Boolean" },
-      { name: "Recent Missed Payments", dataType: "Number" },
+      { name: "Criminal Record Flag (Yes/No)", dataType: "Boolean", riskFieldId: 25 },
+      { name: "History of Defaults/CCJs", dataType: "Boolean", riskFieldId: 26 },
+      { name: "Recent Missed Payments", dataType: "Number", riskFieldId: 27 },
+      { name: "Same Name Cases Flag", dataType: "Boolean", riskFieldId: 28 },
+      { name: "Loan Application Address Risk", dataType: "Text", riskFieldId: 29 },
     ],
   };
 
@@ -159,25 +183,8 @@ const RiskConfiguration = () => {
     {
       id: "financial",
       name: "Financial & Credit",
-      conditions: [
-        {
-          id: "1",
-          field: "Loan Amount",
-          operator: ">",
-          value: "5000",
-          weight: 40,
-          dataType: "Number",
-        },
-        {
-          id: "2",
-          field: "Outstanding Balance",
-          operator: "=",
-          value: "1500",
-          weight: 15,
-          dataType: "Number",
-        },
-      ],
-      totalWeight: 55,
+      conditions: [],
+      totalWeight: 0,
       status: "incomplete",
     },
     {
@@ -209,6 +216,97 @@ const RiskConfiguration = () => {
       status: "incomplete",
     },
   ]);
+
+  // API functions
+  const fetchConfigurations = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://marstonx-defaulterrankingapp.azurewebsites.net/api/GetConfig');
+      const data: ApiConfigItem[] = await response.json();
+      
+      // Transform API data to UI format
+      const transformedCategories = categories.map(category => {
+        const categoryConditions = data
+          .filter(item => {
+            const fieldInfo = Object.values(fieldOptions).flat().find(f => f.name === item.DisplayName);
+            return fieldInfo && Object.values(fieldOptions[category.id as keyof typeof fieldOptions] || []).includes(fieldInfo);
+          })
+          .map(item => ({
+            id: item.ConfigId.toString(),
+            field: item.DisplayName,
+            operator: item.Operator,
+            value: item.Value,
+            weight: item.WeightPercentage,
+            dataType: Object.values(fieldOptions).flat().find(f => f.name === item.DisplayName)?.dataType || "Number",
+            configId: item.ConfigId,
+            riskFieldId: item.RiskFieldId
+          }));
+
+        const totalWeight = categoryConditions.reduce((sum, c) => sum + c.weight, 0);
+        
+        return {
+          ...category,
+          conditions: categoryConditions,
+          totalWeight,
+          status: totalWeight === 100 ? "complete" : "incomplete" as "complete" | "incomplete"
+        };
+      });
+
+      setCategories(transformedCategories);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load configurations",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveConfigurations = async () => {
+    setLoading(true);
+    try {
+      // Transform UI data to API format
+      const allConditions = categories.flatMap(category => 
+        category.conditions.map(condition => ({
+          RiskFieldId: condition.riskFieldId || Object.values(fieldOptions).flat().find(f => f.name === condition.field)?.riskFieldId || 1,
+          Operator: condition.operator,
+          Value: condition.value,
+          WeightPercentage: condition.weight
+        }))
+      );
+
+      const response = await fetch('https://marstonx-defaulterrankingapp.azurewebsites.net/api/SaveConfig', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(allConditions)
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Risk configurations updated successfully."
+        });
+      } else {
+        throw new Error('Failed to save configurations');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save configurations",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConfigurations();
+  }, []);
 
   const activeCategory = categories.find((cat) => cat.id === activeTab);
 
@@ -296,14 +394,20 @@ const RiskConfiguration = () => {
   };
 
   const saveRules = () => {
-    // Store the categories in localStorage to persist across sessions
-    localStorage.setItem("riskCategories", JSON.stringify(categories));
+    // Check if total weights equal 100% for categories with conditions
+    const categoriesWithConditions = categories.filter(cat => cat.conditions.length > 0);
+    const incompleteCategories = categoriesWithConditions.filter(cat => cat.totalWeight !== 100);
+    
+    if (incompleteCategories.length > 0) {
+      toast({
+        title: "Invalid Configuration",
+        description: "All categories with conditions must have weights totaling 100%",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    toast({
-      title: "Rules Saved",
-      description:
-        "Scoring Configuration has been saved successfully. Dashboard will reflect these changes.",
-    });
+    saveConfigurations();
   };
 
   const previewRules = () => {
@@ -379,6 +483,11 @@ const RiskConfiguration = () => {
                           condition.id,
                           "dataType",
                           selectedField.dataType
+                        );
+                        updateCondition(
+                          condition.id,
+                          "riskFieldId",
+                          selectedField.riskFieldId
                         );
                       }
                     }}
@@ -532,7 +641,9 @@ const RiskConfiguration = () => {
             <Button onClick={previewRules} variant="outline">
               Preview Rules
             </Button>
-            <Button onClick={saveRules}>Save Configuration</Button>
+            <Button onClick={saveRules} disabled={loading}>
+              {loading ? "Saving..." : "Save Configuration"}
+            </Button>
           </div>
         </CardContent>
       </Card>
