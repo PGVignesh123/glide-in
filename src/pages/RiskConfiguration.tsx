@@ -222,12 +222,15 @@ const RiskConfiguration = () => {
     setLoading(true);
     try {
       const response = await fetch('https://marstonx-defaulterrankingapp.azurewebsites.net/api/GetConfig');
+      console.log("[GetConfig] Response status:", response.status);
       const data: ApiConfigItem[] = await response.json();
       
-      // Transform API data to UI format
+      // Transform API data to UI format, only include enabled configs
       const transformedCategories = categories.map(category => {
         const categoryConditions = data
           .filter(item => {
+            if (!item.IsEnabled) return false;
+            console.log("[FetchConfig] Processing item:", item);
             const fieldInfo = Object.values(fieldOptions).flat().find(f => f.name === item.DisplayName);
             return fieldInfo && Object.values(fieldOptions[category.id as keyof typeof fieldOptions] || []).includes(fieldInfo);
           })
@@ -243,7 +246,7 @@ const RiskConfiguration = () => {
           }));
 
         const totalWeight = categoryConditions.reduce((sum, c) => sum + c.weight, 0);
-        
+        console.log(`[FetchConfig] Category: ${category.name}, Total Weight: ${totalWeight}`);
         return {
           ...category,
           conditions: categoryConditions,
@@ -277,6 +280,8 @@ const RiskConfiguration = () => {
         }))
       );
 
+      console.log("[SaveConfig] Payload:", allConditions);
+
       const response = await fetch('https://marstonx-defaulterrankingapp.azurewebsites.net/api/SaveConfig', {
         method: 'POST',
         headers: {
@@ -284,6 +289,16 @@ const RiskConfiguration = () => {
         },
         body: JSON.stringify(allConditions)
       });
+
+      console.log("[SaveConfig] Response status:", response.status);
+      let responseBody;
+      try {
+        responseBody = await response.text();
+        console.log("[SaveConfig] Response JSON:", responseBody);
+      } catch (e) {
+        responseBody = await response.text();
+        console.log("[SaveConfig] Response Text:", responseBody);
+      }
 
       if (response.ok) {
         toast({
@@ -294,6 +309,7 @@ const RiskConfiguration = () => {
         throw new Error('Failed to save configurations');
       }
     } catch (error) {
+      console.error("[SaveConfig] Error:", error);
       toast({
         title: "Error",
         description: "Failed to save configurations",
